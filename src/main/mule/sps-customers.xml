@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	
+	<flow name="sps-customer-by-id" doc:id="15f3d53c-5fea-4940-aef5-ae910e9c6161" >
+		<http:listener doc:name="Listener" doc:id="371ce80f-a014-4b9b-b5a3-f1ee7c7c91a2" config-ref="HTTP_Listener_config1" path="/api/v1/sps/customers/{idCustomer}"/>
+		<db:select doc:name="Select" doc:id="2c5b68a6-f11a-4713-9dbc-83b50a02c7e1" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT nombre,apellido,correo FROM customer WHERE id = :id
+]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{'id': attributes.uriParams.idCustomer}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="7f45f685-5dda-464c-8650-7401a0ba88d0" >
+			<when expression="#[sizeOf(payload) &gt; 0]">
+				<ee:transform doc:name="Transform Message" doc:id="fb4dfe99-e007-4d71-9976-6f8e9975b432" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+{
+  nombre: payload[0].nombre,
+  apellido: payload[0].apellido,
+  email: payload[0].correo
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="e64b6e04-88f9-46ee-915f-f77a7a61b4dc" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "error": "Cliente no encontrado"
+} 
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="sps-customersFlow" doc:id="8425a2fe-2a6d-4c8e-a029-da07788aa40b">
+		<http:listener doc:name="Listener" doc:id="9b4b1a10-f8a2-49d4-8ebc-21bcd4877fff" config-ref="HTTP_Listener_config1" path="/api/v1/sps/customers" />
+		<db:select doc:name="Select" doc:id="8ccdef1d-076c-406d-8ba2-9ffbd2450d69" config-ref="Database_Config">
+			<db:sql><![CDATA[SELECT nombre,apellido,correo FROM customer;]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="35d8a39b-583f-4903-b59f-6d58fd0ec37f">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload map (c) -> {
+  nombre: c.nombre,
+  apellido : c.apellido,
+  email: c.correo
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
